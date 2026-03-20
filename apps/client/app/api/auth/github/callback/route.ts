@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
-import { PrismaClient } from "@repo/store/generated/prisma";
-import { PrismaNeon } from "@prisma/adapter-neon";
+import { prismaClient } from "@repo/store";
 
 // GitHub OAuth URLs
 const GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token";
@@ -11,8 +10,6 @@ const FRONTEND_URL =
   process.env.NEXT_PUBLIC_FRONTEND_URL || "http://localhost:3000";
 
 // Create Prisma client for Next.js (doesn't use Bun-dependent config)
-const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL! });
-const prisma = new PrismaClient({ adapter });
 
 // Types for GitHub API responses
 interface GitHubTokenResponse {
@@ -125,7 +122,7 @@ export async function GET(request: NextRequest) {
     // Step 4: Find or create user and account
     const githubId = githubUser.id.toString();
 
-    const existingAccount = await prisma.account.findUnique({
+    const existingAccount = await prismaClient.account.findUnique({
       where: {
         provider_providerAccountId: {
           provider: "github",
@@ -138,7 +135,7 @@ export async function GET(request: NextRequest) {
     let user;
 
     if (existingAccount) {
-      user = await prisma.user.update({
+      user = await prismaClient.user.update({
         where: { id: existingAccount.userId },
         data: {
           name: githubUser.name || githubUser.login,
@@ -149,17 +146,17 @@ export async function GET(request: NextRequest) {
         },
       });
 
-      await prisma.account.update({
+      await prismaClient.account.update({
         where: { id: existingAccount.id },
         data: { accessToken },
       });
     } else {
       const existingUser = primaryEmail
-        ? await prisma.user.findUnique({ where: { email: primaryEmail } })
+        ? await prismaClient.user.findUnique({ where: { email: primaryEmail } })
         : null;
 
       if (existingUser) {
-        await prisma.account.create({
+        await prismaClient.account.create({
           data: {
             userId: existingUser.id,
             provider: "github",
@@ -168,7 +165,7 @@ export async function GET(request: NextRequest) {
           },
         });
 
-        user = await prisma.user.update({
+        user = await prismaClient.user.update({
           where: { id: existingUser.id },
           data: {
             name: existingUser.name || githubUser.name || githubUser.login,
@@ -176,7 +173,7 @@ export async function GET(request: NextRequest) {
           },
         });
       } else {
-        user = await prisma.user.create({
+        user = await prismaClient.user.create({
           data: {
             email: primaryEmail || `github_${githubId}@placeholder.local`,
             name: githubUser.name || githubUser.login,
