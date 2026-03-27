@@ -1,0 +1,12 @@
+{
+  "name": "ishowspeed",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build"
+  },
+  "devDependencies": {
+    "turbo": "latest"
+  }
+}
