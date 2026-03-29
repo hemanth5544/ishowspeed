@@ -1,373 +1,248 @@
 "use client"
 
 import * as React from "react"
-import * as RechartsPrimitive from "recharts"
-import type { TooltipValueType } from "recharts"
-
+import SpeedTest from "@cloudflare/speedtest"
+import { motion } from "framer-motion"
+import {
+  Area, AreaChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Tooltip
+} from "recharts"
+import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 
-// Format: { THEME_NAME: CSS_SELECTOR }
-const THEMES = { light: "", dark: ".dark" } as const
+type Metric = "download" | "upload" | "latency"
+type Status = "idle" | "running" | "finished"
 
-const INITIAL_DIMENSION = { width: 320, height: 200 } as const
-type TooltipNameType = number | string
+type Point = { index: number; download?: number; upload?: number; latency?: number }
 
-export type ChartConfig = Record<
-  string,
-  {
-    label?: React.ReactNode
-    icon?: React.ComponentType
-  } & (
-    | { color?: string; theme?: never }
-    | { color?: never; theme: Record<keyof typeof THEMES, string> }
-  )
->
+const METRICS = [
+  { key: "download", label: "Download", unit: "Mbps", color: "#378ADD" },
+  { key: "upload",   label: "Upload",   unit: "Mbps", color: "#1D9E75" },
+  { key: "latency",  label: "Latency",  unit: "ms",   color: "#BA7517" },
+] as const
 
-type ChartContextProps = {
-  config: ChartConfig
+function quality(dl: number) {
+  if (dl > 100) return "Excellent"
+  if (dl > 50)  return "Good"
+  if (dl > 10)  return "Fair"
+  if (dl > 0)   return "Slow"
+  return "—"
 }
 
-const ChartContext = React.createContext<ChartContextProps | null>(null)
-
-function useChart() {
-  const context = React.useContext(ChartContext)
-
-  if (!context) {
-    throw new Error("useChart must be used within a <ChartContainer />")
-  }
-
-  return context
-}
-
-function ChartContainer({
-  id,
-  className,
-  children,
-  config,
-  initialDimension = INITIAL_DIMENSION,
-  ...props
-}: React.ComponentProps<"div"> & {
-  config: ChartConfig
-  children: React.ComponentProps<
-    typeof RechartsPrimitive.ResponsiveContainer
-  >["children"]
-  initialDimension?: {
-    width: number
-    height: number
-  }
-}) {
-  const uniqueId = React.useId()
-  const chartId = `chart-${id ?? uniqueId.replace(/:/g, "")}`
-
-  return (
-    <ChartContext.Provider value={{ config }}>
-      <div
-        data-slot="chart"
-        data-chart={chartId}
-        className={cn(
-          "flex aspect-video justify-center text-xs [&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-hidden [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border [&_.recharts-sector]:outline-hidden [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-surface]:outline-hidden",
-          className
-        )}
-        {...props}
-      >
-        <ChartStyle id={chartId} config={config} />
-        <RechartsPrimitive.ResponsiveContainer
-          initialDimension={initialDimension}
-        >
-          {children}
-        </RechartsPrimitive.ResponsiveContainer>
-      </div>
-    </ChartContext.Provider>
-  )
-}
-
-const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
-  const colorConfig = Object.entries(config).filter(
-    ([, config]) => config.theme ?? config.color
-  )
-
-  if (!colorConfig.length) {
-    return null
-  }
-
-  return (
-    <style
-      dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
-${colorConfig
-  .map(([key, itemConfig]) => {
-    const color =
-      itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ??
-      itemConfig.color
-    return color ? `  --color-${key}: ${color};` : null
+export function ChartLineInteractive() {
+  const [active, setActive]   = React.useState<Metric>("download")
+  const [data, setData]       = React.useState<Point[]>([])
+  const [status, setStatus]   = React.useState<Status>("idle")
+  const [progress, setProgress] = React.useState(0)
+  const [summary, setSummary] = React.useState({
+    download: 0, upload: 0, latency: 0, jitter: 0, packetLoss: 0
   })
-  .join("\n")}
-}
-`
-          )
-          .join("\n"),
-      }}
-    />
-  )
-}
 
-const ChartTooltip = RechartsPrimitive.Tooltip
+  const progRef = React.useRef<ReturnType<typeof setInterval> | null>(null)
+  const idxRef  = React.useRef(0)
 
-function ChartTooltipContent({
-  active,
-  payload,
-  className,
-  indicator = "dot",
-  hideLabel = false,
-  hideIndicator = false,
-  label,
-  labelFormatter,
-  labelClassName,
-  formatter,
-  color,
-  nameKey,
-  labelKey,
-}: React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
-  React.ComponentProps<"div"> & {
-    hideLabel?: boolean
-    hideIndicator?: boolean
-    indicator?: "line" | "dot" | "dashed"
-    nameKey?: string
-    labelKey?: string
-  } & Omit<
-    RechartsPrimitive.DefaultTooltipContentProps<
-      TooltipValueType,
-      TooltipNameType
-    >,
-    "accessibilityLayer"
-  >) {
-  const { config } = useChart()
+  const startTest = React.useCallback(() => {
+    setData([])
+    setSummary({ download: 0, upload: 0, latency: 0, jitter: 0, packetLoss: 0 })
+    setProgress(0)
+    setStatus("running")
+    idxRef.current = 0
 
-  const tooltipLabel = React.useMemo(() => {
-    if (hideLabel || !payload?.length) {
-      return null
+    if (progRef.current) clearInterval(progRef.current)
+    progRef.current = setInterval(() => {
+      setProgress(p => Math.min(p + 1.2, 92))
+    }, 400)
+
+    const engine = new SpeedTest({ autoStart: true })
+
+    engine.onResultsChange = () => {
+      const r = engine.results.getSummary()
+
+      const dl  = r.download  ? +(r.download / 1e6).toFixed(2) : undefined
+      const ul  = r.upload    ? +(r.upload   / 1e6).toFixed(2) : undefined
+      const lat = r.latency   ? +r.latency.toFixed(1)          : undefined
+      const jit = r.jitter    ? +r.jitter.toFixed(1)           : undefined
+      const pl  = r.packetLoss !== undefined ? +r.packetLoss.toFixed(2) : undefined
+
+      setSummary(prev => ({
+        download: dl  ?? prev.download,
+        upload:   ul  ?? prev.upload,
+        latency:  lat ?? prev.latency,
+        jitter:   jit ?? prev.jitter,
+        packetLoss: pl ?? prev.packetLoss,
+      }))
+
+      setData(prev => {
+        const idx = idxRef.current++
+        return [...prev, { index: idx, download: dl, upload: ul, latency: lat }]
+      })
     }
 
-    const [item] = payload
-    const key = `${labelKey ?? item?.dataKey ?? item?.name ?? "value"}`
-    const itemConfig = getPayloadConfigFromPayload(config, item, key)
-    const value =
-      !labelKey && typeof label === "string"
-        ? (config[label]?.label ?? label)
-        : itemConfig?.label
+    engine.onFinish = () => {
+      if (progRef.current) clearInterval(progRef.current)
+      setProgress(100)
+      setStatus("finished")
+    }
 
-    if (labelFormatter) {
-      return (
-        <div className={cn("font-medium", labelClassName)}>
-          {labelFormatter(value, payload)}
+    engine.onError = () => {
+      if (progRef.current) clearInterval(progRef.current)
+      setStatus("finished")
+    }
+  }, [])
+
+  const activeMeta = METRICS.find(m => m.key === active)!
+  const qualityLabel = quality(summary.download)
+
+  return (
+    <Card className="h-full flex flex-col overflow-hidden rounded-2xl backdrop-blur-xl bg-background/60 border border-white/10 shadow-xl">
+      
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="h-full flex flex-col">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b">
+          
+
+          <button
+            onClick={startTest}
+            disabled={status === "running"}
+            className="text-xs font-semibold px-4 py-2 rounded-lg border hover:bg-muted disabled:opacity-50"
+          >
+            {status === "running" ? (
+              <span className="flex items-center gap-2">
+                <motion.span
+                  className="w-2 h-2 bg-green-500 rounded-full"
+                  animate={{ scale: [1, 1.5, 1] }}
+                  transition={{ repeat: Infinity, duration: 1 }}
+                />
+                Running…
+              </span>
+            ) : status === "finished" ? "Re-run" : "Run test"}
+          </button>
         </div>
-      )
-    }
 
-    if (!value) {
-      return null
-    }
+        {/* Hero speed */}
+        <div className="flex flex-col items-center justify-center py-6">
+          <motion.h1
+            key={summary[active]}
+            initial={{ scale: 0.9, opacity: 0.5 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="text-5xl font-bold"
+            style={{ color: activeMeta.color }}
+          >
+            {summary[active] > 0
+              ? summary[active].toFixed(active === "latency" ? 0 : 1)
+              : "--"}
+          </motion.h1>
+          <p className="text-xs text-muted-foreground">{activeMeta.unit}</p>
+        </div>
 
-    return <div className={cn("font-medium", labelClassName)}>{value}</div>
-  }, [
-    label,
-    labelFormatter,
-    payload,
-    hideLabel,
-    labelClassName,
-    config,
-    labelKey,
-  ])
-
-  if (!active || !payload?.length) {
-    return null
-  }
-
-  const nestLabel = payload.length === 1 && indicator !== "dot"
-
-  return (
-    <div
-      className={cn(
-        "grid min-w-32 items-start gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl",
-        className
-      )}
-    >
-      {!nestLabel ? tooltipLabel : null}
-      <div className="grid gap-1.5">
-        {payload
-          .filter((item) => item.type !== "none")
-          .map((item, index) => {
-            const key = `${nameKey ?? item.name ?? item.dataKey ?? "value"}`
-            const itemConfig = getPayloadConfigFromPayload(config, item, key)
-            const indicatorColor = color ?? item.payload?.fill ?? item.color
-
-            return (
-              <div
-                key={index}
-                className={cn(
-                  "flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5 [&>svg]:text-muted-foreground",
-                  indicator === "dot" && "items-center"
-                )}
-              >
-                {formatter && item?.value !== undefined && item.name ? (
-                  formatter(item.value, item.name, item, index, item.payload)
-                ) : (
-                  <>
-                    {itemConfig?.icon ? (
-                      <itemConfig.icon />
-                    ) : (
-                      !hideIndicator && (
-                        <div
-                          className={cn(
-                            "shrink-0 rounded-[2px] border-(--color-border) bg-(--color-bg)",
-                            {
-                              "h-2.5 w-2.5": indicator === "dot",
-                              "w-1": indicator === "line",
-                              "w-0 border-[1.5px] border-dashed bg-transparent":
-                                indicator === "dashed",
-                              "my-0.5": nestLabel && indicator === "dashed",
-                            }
-                          )}
-                          style={
-                            {
-                              "--color-bg": indicatorColor,
-                              "--color-border": indicatorColor,
-                            } as React.CSSProperties
-                          }
-                        />
-                      )
-                    )}
-                    <div
-                      className={cn(
-                        "flex flex-1 justify-between leading-none",
-                        nestLabel ? "items-end" : "items-center"
-                      )}
-                    >
-                      <div className="grid gap-1.5">
-                        {nestLabel ? tooltipLabel : null}
-                        <span className="text-muted-foreground">
-                          {itemConfig?.label ?? item.name}
-                        </span>
-                      </div>
-                      {item.value != null && (
-                        <span className="font-mono font-medium text-foreground tabular-nums">
-                          {typeof item.value === "number"
-                            ? item.value.toLocaleString()
-                            : String(item.value)}
-                        </span>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-            )
-          })}
-      </div>
-    </div>
-  )
-}
-
-const ChartLegend = RechartsPrimitive.Legend
-
-function ChartLegendContent({
-  className,
-  hideIcon = false,
-  payload,
-  verticalAlign = "bottom",
-  nameKey,
-}: React.ComponentProps<"div"> & {
-  hideIcon?: boolean
-  nameKey?: string
-} & RechartsPrimitive.DefaultLegendContentProps) {
-  const { config } = useChart()
-
-  if (!payload?.length) {
-    return null
-  }
-
-  return (
-    <div
-      className={cn(
-        "flex items-center justify-center gap-4",
-        verticalAlign === "top" ? "pb-3" : "pt-3",
-        className
-      )}
-    >
-      {payload
-        .filter((item) => item.type !== "none")
-        .map((item, index) => {
-          const key = `${nameKey ?? item.dataKey ?? "value"}`
-          const itemConfig = getPayloadConfigFromPayload(config, item, key)
-
-          return (
-            <div
-              key={index}
-              className={cn(
-                "flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-muted-foreground"
-              )}
+        {/* Tabs */}
+        <div className="grid grid-cols-3 border-b">
+          {METRICS.map(({ key, label, unit, color }) => (
+            <button
+              key={key}
+              onClick={() => setActive(key)}
+              className={cn("relative px-5 py-4 text-left hover:bg-muted/40", active === key && "bg-muted/30")}
             >
-              {itemConfig?.icon && !hideIcon ? (
-                <itemConfig.icon />
-              ) : (
-                <div
-                  className="h-2 w-2 shrink-0 rounded-[2px]"
-                  style={{
-                    backgroundColor: item.color,
-                  }}
+              {active === key && (
+                <motion.div
+                  layoutId="activeTab"
+                  className="absolute inset-0 rounded-lg blur-xl opacity-20"
+                  style={{ background: color }}
                 />
               )}
-              {itemConfig?.label}
+
+              <p className="text-xs text-muted-foreground">{label}</p>
+
+              <motion.p
+                key={summary[key]}
+                className="font-mono text-xl"
+                style={{ color: summary[key] > 0 ? color : undefined }}
+              >
+                {summary[key] > 0
+                  ? summary[key].toFixed(key === "latency" ? 0 : 1)
+                  : "—"}
+              </motion.p>
+
+              <p className="text-[10px] text-muted-foreground">{unit}</p>
+            </button>
+          ))}
+        </div>
+
+        {/* Chart */}
+        <CardContent className="flex-1 p-0 relative">
+          {data.length === 0 ? (
+            <div className="h-52 flex items-center justify-center text-muted-foreground">
+              No data yet
             </div>
-          )
-        })}
-    </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <AreaChart data={data}>
+                <defs>
+                  <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={activeMeta.color} stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor={activeMeta.color} stopOpacity={0}/>
+                  </linearGradient>
+
+                  <filter id="glow">
+                    <feGaussianBlur stdDeviation="3" result="blur"/>
+                    <feMerge>
+                      <feMergeNode in="blur"/>
+                      <feMergeNode in="SourceGraphic"/>
+                    </feMerge>
+                  </filter>
+                </defs>
+
+                <CartesianGrid vertical={false} stroke="rgba(128,128,128,0.1)" />
+                <XAxis dataKey="index" hide />
+                <YAxis hide />
+
+                <Tooltip />
+
+                <Area
+                  type="monotone"
+                  dataKey={active}
+                  stroke={activeMeta.color}
+                  strokeWidth={2.5}
+                  fill="url(#grad)"
+                  filter="url(#glow)"
+                  dot={false}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+
+          {/* Progress */}
+          {status === "running" && (
+            <div className="h-1 mx-4 mt-2 bg-muted rounded-full overflow-hidden">
+              <motion.div
+                className="h-full"
+                style={{ background: activeMeta.color }}
+                animate={{ width: `${progress}%` }}
+              />
+            </div>
+          )}
+        </CardContent>
+
+        {/* Footer */}
+        <div className="grid grid-cols-4 gap-2 px-4 pb-4">
+          <Stat label="Jitter" val={summary.jitter ? `${summary.jitter.toFixed(1)} ms` : "—"} />
+          <Stat label="Loss" val={summary.packetLoss ? `${summary.packetLoss.toFixed(1)}%` : "—"} />
+          <Stat label="Server" val="Cloudflare" />
+          <Stat label="Quality" val={qualityLabel} highlight />
+        </div>
+
+      </motion.div>
+    </Card>
   )
 }
 
-function getPayloadConfigFromPayload(
-  config: ChartConfig,
-  payload: unknown,
-  key: string
-) {
-  if (typeof payload !== "object" || payload === null) {
-    return undefined
-  }
-
-  const payloadPayload =
-    "payload" in payload &&
-    typeof payload.payload === "object" &&
-    payload.payload !== null
-      ? payload.payload
-      : undefined
-
-  let configLabelKey: string = key
-
-  if (
-    key in payload &&
-    typeof payload[key as keyof typeof payload] === "string"
-  ) {
-    configLabelKey = payload[key as keyof typeof payload] as string
-  } else if (
-    payloadPayload &&
-    key in payloadPayload &&
-    typeof payloadPayload[key as keyof typeof payloadPayload] === "string"
-  ) {
-    configLabelKey = payloadPayload[
-      key as keyof typeof payloadPayload
-    ] as string
-  }
-
-  return configLabelKey in config ? config[configLabelKey] : config[key]
-}
-
-export {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
-  ChartStyle,
+function Stat({ label, val, highlight }: { label: string; val: string; highlight?: boolean }) {
+  return (
+    <div className="bg-muted/50 rounded-lg px-3 py-2">
+      <p className="text-[10px] text-muted-foreground">{label}</p>
+      <p className={cn("font-mono text-sm mt-1", highlight && "text-green-500")}>
+        {val}
+      </p>
+    </div>
+  )
 }
