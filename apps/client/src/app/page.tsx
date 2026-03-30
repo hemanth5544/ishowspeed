@@ -1,24 +1,44 @@
+"use client";
 import ThemeSwitcherDemo from "@/components/theme";
 import { MapControlsExample } from "@/components/map";
-import { ChartLineInteractive } from "@/components/chart";
+import { ChartLineInteractive } from "@/components/speed/chart";
+import { useSpeedTest, quality } from "@/components/hooks/useSpeedTest";
+import { HeaderStats } from "@/components/speed/headerStats";
 
 export default function BarsPage() {
+  const { data, status, progress, summary, startTest } = useSpeedTest();
+
   return (
     <div className="min-h-screen p-8">
-      {/* Top bar */}
-      <div className="mb-6 flex justify-end">
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <HeaderStats
+          items={[
+            {
+              label: "Jitter",
+              val: summary.jitter > 0 ? `${summary.jitter.toFixed(1)} ms` : "—",
+            },
+            {
+              label: "Packet loss",
+              val: summary.packetLoss > 0 ? `${summary.packetLoss.toFixed(1)}%` : "—",
+            },
+            { label: "Server", val: "Cloudflare" },
+            { label: "Quality", val: quality(summary.download) },
+          ]}
+        />
+
         <ThemeSwitcherDemo />
       </div>
-
-      {/* Main row — items-stretch makes both cards equal height */}
-      <div className="flex gap-6 items-stretch">
-        {/* Chart grows to fill */}
-        <div className="flex-1 min-w-0">
-          <ChartLineInteractive />
+      <div className="flex h-[400px] items-stretch gap-6">
+        <div className="h-full min-w-0 flex-[4]">
+          <ChartLineInteractive
+            data={data}
+            status={status}
+            progress={progress}
+            summary={summary}
+            startTest={startTest}
+          />
         </div>
-
-        {/* Map — same height as chart */}
-        <div className="w-[450px] shrink-0">
+        <div className="h-full min-w-[280px] flex-[1.5]">
           <MapControlsExample />
         </div>
       </div>
