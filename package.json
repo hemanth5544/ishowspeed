@@ -5,7 +5,10 @@
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
     "dev": "turbo run dev",
-    "build": "turbo run build"
+    "dev:frontend": "turbo run dev --filter=client",
+    "build": "turbo run build",
+    "build:frontend": "turbo run build --filter=client",
+    "start:frontend": "turbo run start --filter=client"
   },
   "devDependencies": {
     "turbo": "latest"

@@ -136,7 +136,14 @@ export function ChartLineInteractive({ data, status, progress, summary, startTes
                   border: "0.5px solid rgba(128,128,128,0.2)",
                   background: "var(--background)",
                 }}
-                formatter={(v: number) => [`${v.toFixed(1)} ${activeUnit}`, active]}
+                formatter={(value) => {
+                  const parsed =
+                    typeof value === "number"
+                      ? value
+                      : Number(Array.isArray(value) ? value[0] : value)
+                  const safeValue = Number.isFinite(parsed) ? parsed : 0
+                  return [`${safeValue.toFixed(1)} ${activeUnit}`, active]
+                }}
                 labelFormatter={() => ""}
               />
               <Area
