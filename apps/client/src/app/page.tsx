@@ -7,6 +7,7 @@ import { HeaderStats } from "@/components/speed/headerStats";
 import { IPInfoCard } from "@/components/speed/Ipinfocard";
 import { ConnectionQuality } from "@/components/speed/Connectionquality";
 import { PingRegions } from "@/components/speed/Pingregions";
+import { EyeTracking } from "@/components/ui/eye-tracking";
 
 export default function BarsPage() {
   const { data, status, progress, summary, startTest } = useSpeedTest();
@@ -14,7 +15,7 @@ export default function BarsPage() {
   return (
     <div className="relative min-h-screen">
 
-      {/* Left stripe */}
+      {/* Left stripe — right edge of sidebar */}
       <div
         className="diagonal-stripes pointer-events-none absolute inset-y-0 hidden w-5 lg:block"
         style={{ left: "260px" }}
@@ -27,6 +28,14 @@ export default function BarsPage() {
         style={{ right: "130px" }}
         aria-hidden="true"
       />
+
+      {/* EyeTracking — fixed in the right margin strip, bottom corner */}
+      <div
+        className="hidden lg:flex fixed bottom-8 items-center justify-center z-20"
+        style={{ right: 0, width: "130px" }}
+      >
+<EyeTracking eyeSize={50} gap={20} />
+      </div>
 
       <div className="flex min-h-screen">
 
@@ -80,7 +89,7 @@ export default function BarsPage() {
 
           </div>
 
-          {/* Row 2: Ping regions — full width */}
+          {/* Row 2: Ping regions full width */}
           <div className="mt-6 pb-8">
             <PingRegions />
           </div>
