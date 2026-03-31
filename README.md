@@ -1,13 +1,4 @@
-<div align="center">
-  <p>
-    <img src="https://nextjs.org/static/favicon/safari-pinned-tab.svg" alt="Next.js" width="52" />
-    <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/react/react-original.svg" alt="React" width="52" />
-    <img src="https://bun.sh/logo.svg" alt="Bun" width="58" />
-    <img src="./apps/client/public/turborepo-icon-seeklogo.svg" alt="Turborepo" width="52" />
-    <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/typescript/typescript-original.svg" alt="TypeScript" width="52" />
-    <img src="https://avatars.githubusercontent.com/u/139895814?s=200&v=4" alt="Cloudflare Speedtest" width="52" />
-  </p>
-</div>
+
 
 <h2 align="center">
   ISHOWSPEED
@@ -23,25 +14,6 @@
 
 ---
 
-## Proof of Work
-![poc](./apps/client/public/poc-1.png)
-![poc2](./apps/client/public/poc-2.png)
-
----
-
-## System Architecture
-
-<div align="center">
-  <img
-    width="1634"
-    height="735"
-    alt="Ishowspeed Architecture Diagram"
-    src="./apps/client/public/architecture.png"
-  />
-</div>
-
-**Explore the full architecture here:**  
-https://excalidraw.com/
 
 ---
 
