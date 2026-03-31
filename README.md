@@ -18,7 +18,7 @@
 </p>
 
 <div align="center">
-  <img src="./apps/client/public/ishowspeed-demo.gif" alt="Ishowspeed Demo" />
+  <img src="./apps/client/public/demo.gif" alt="Ishowspeed Demo" />
 </div>
 
 ---
