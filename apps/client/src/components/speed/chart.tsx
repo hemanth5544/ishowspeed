@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils"
 import { NativeStartNow } from "@/components/uitripled/native-start-now-shadcnui"
 import { METRICS } from "../constats/speedTestConstants"
 import type { Metric, Status, Point, Summary } from "../hooks/useSpeedTest"
+import { useAnimatedNumber } from "@/components/speed/Useanimatednumber"
 
 interface ChartLineInteractiveProps {
   data: Point[]
@@ -16,6 +17,32 @@ interface ChartLineInteractiveProps {
   progress: number
   summary: Summary
   startTest: () => void
+}
+
+function AnimatedStat({
+  value,
+  metricKey,
+  color,
+  isActive,
+}: {
+  value: number
+  metricKey: Metric
+  color: string
+  isActive: boolean
+}) {
+  const display = useAnimatedNumber(value, {
+    decimals: metricKey === "latency" ? 0 : 1,
+    duration: 500,
+  })
+
+  return (
+    <span
+      className="font-mono text-xl font-medium leading-none tabular-nums"
+      style={{ color: isActive && value > 0 ? color : undefined }}
+    >
+      {display}
+    </span>
+  )
 }
 
 export function ChartLineInteractive({ data, status, progress, summary, startTest }: ChartLineInteractiveProps) {
@@ -26,7 +53,7 @@ export function ChartLineInteractive({ data, status, progress, summary, startTes
   const activeUnit   = activeMetric.unit
 
   return (
-    <Card className="h-full flex flex-col overflow-hidden rounded-2xl shadow-lg">
+    <Card className="h-full flex flex-col overflow-hidden rounded-2xl shadow-sm">
 
       {/* ── Compact header ── */}
       <div className="flex items-center justify-between px-4 py-3 border-b">
@@ -53,7 +80,7 @@ export function ChartLineInteractive({ data, status, progress, summary, startTes
       <div className="flex gap-2 px-3 py-2.5 bg-muted/30 border-b">
         {METRICS.map(({ key, label, unit, color }) => {
           const isActive = active === key
-          const val = summary[key]
+          const val      = summary[key]
           return (
             <button
               key={key}
@@ -61,36 +88,20 @@ export function ChartLineInteractive({ data, status, progress, summary, startTes
               className={cn(
                 "flex-1 flex flex-col items-start gap-0.5 px-3 py-2 rounded-xl text-left transition-all",
                 "border",
-                isActive
-                  ? "shadow-sm"
-                  : "border-border bg-transparent hover:bg-muted/50"
+                isActive ? "shadow-sm" : "border-border bg-transparent hover:bg-muted/50"
               )}
-              style={isActive ? {
-                borderColor: color,
-                backgroundColor: color + "18",
-              } : {}}
+              style={isActive ? { borderColor: color, backgroundColor: color + "18" } : {}}
             >
-              {/* label row */}
               <span
                 className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-medium"
                 style={{ color: isActive ? color : "var(--muted-foreground)" }}
               >
-                <span
-                  className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                  style={{ background: color }}
-                />
+                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
                 {label}
               </span>
 
-              {/* value */}
-              <span
-                className="font-mono text-xl font-medium leading-none tabular-nums"
-                style={{ color: isActive && val > 0 ? color : undefined }}
-              >
-                {val > 0 ? val.toFixed(key === "latency" ? 0 : 1) : "—"}
-              </span>
+              <AnimatedStat value={val} metricKey={key} color={color} isActive={isActive} />
 
-              {/* unit */}
               <span
                 className="text-[10px]"
                 style={{ color: isActive ? color : "var(--muted-foreground)", opacity: isActive ? 0.7 : 1 }}
@@ -137,12 +148,11 @@ export function ChartLineInteractive({ data, status, progress, summary, startTes
                   background: "var(--background)",
                 }}
                 formatter={(value) => {
-                  const parsed =
+                  const numericValue =
                     typeof value === "number"
                       ? value
-                      : Number(Array.isArray(value) ? value[0] : value)
-                  const safeValue = Number.isFinite(parsed) ? parsed : 0
-                  return [`${safeValue.toFixed(1)} ${activeUnit}`, active]
+                      : Number.isFinite(Number(value)) ? Number(value) : 0
+                  return [`${numericValue.toFixed(1)} ${activeUnit}`, active]
                 }}
                 labelFormatter={() => ""}
               />

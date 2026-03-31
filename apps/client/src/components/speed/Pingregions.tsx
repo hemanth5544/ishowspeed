@@ -92,17 +92,15 @@ function Tooltip({ data }: { data: TooltipData }) {
 
 function PingBar({
   history,
-  regionIndex,
 }: {
   history: PingResult[];
-  regionIndex: number;
 }) {
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
 
   const filled = [...Array(MAX_HISTORY - history.length).fill(null), ...history];
 
   return (
-    <div className="flex items-center gap-[2px] flex-1">
+    <div className="flex flex-1 items-center gap-[2px]">
       {filled.map((item, i) => {
         const isEmpty = item === null;
         const color   = isEmpty ? "transparent" : getColor(item.ms);
@@ -188,15 +186,22 @@ export function PingRegions() {
   }
 
   useEffect(() => {
-    runPings();
-    intervalRef.current = setInterval(runPings, PING_INTERVAL);
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+    const initialRun = setTimeout(() => {
+      void runPings();
+    }, 0);
+    intervalRef.current = setInterval(() => {
+      void runPings();
+    }, PING_INTERVAL);
+    return () => {
+      clearTimeout(initialRun);
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, []);
 
   return (
     <Card className="overflow-hidden rounded-2xl shadow-sm">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b">
+      <div className="flex flex-col gap-2 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <p className="text-sm font-semibold tracking-tight">Ping to regions</p>
           <AnimatePresence>
@@ -206,6 +211,7 @@ export function PingRegions() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
                 className="text-[10px] text-muted-foreground px-2 py-0.5 rounded-full bg-muted border border-border"
+                aria-live="polite"
               >
                 pinging…
               </motion.span>
@@ -214,7 +220,7 @@ export function PingRegions() {
         </div>
 
         {/* Legend */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           {[
             { label: "<80ms",  color: "#10b981" },
             { label: "<150ms", color: "#f59e0b" },
@@ -241,16 +247,16 @@ export function PingRegions() {
               initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: ri * 0.05, duration: 0.3 }}
-              className="flex items-center gap-3"
+              className="flex items-center gap-2 sm:gap-3"
             >
               {/* Region label */}
-              <div className="flex items-center gap-1.5 w-[130px] shrink-0">
+              <div className="flex w-[105px] shrink-0 items-center gap-1.5 sm:w-[130px]">
                 <span className="text-base leading-none">{region.flag}</span>
                 <span className="text-[12px] font-medium text-foreground truncate">{region.label}</span>
               </div>
 
               {/* Ping bar */}
-              <PingBar history={hist} regionIndex={ri} />
+              <PingBar history={hist} />
 
               {/* Current ms */}
               <CurrentPing ms={latest?.ms} />

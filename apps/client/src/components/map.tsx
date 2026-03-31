@@ -12,8 +12,15 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { LocateFixed } from "lucide-react";
 
+interface LocationData {
+  name: string;
+  lat: number;
+  lng: number;
+  ip: string;
+}
+
 /* ✈️ FlyTo Animation */
-function FlyToLocation({ location }: any) {
+function FlyToLocation({ location }: { location: LocationData | null }) {
   const { map } = useMap();
 
   useEffect(() => {
@@ -32,11 +39,14 @@ function FlyToLocation({ location }: any) {
 }
 
 export function GlobeMarkersCard() {
-  const [location, setLocation] = useState<any>(null);
+  const [location, setLocation] = useState<LocationData | null>(null);
   const [triggerFly, setTriggerFly] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
 
   /* 📍 Handle click */
   const handleLocate = async () => {
+    if (isLocating) return;
+    setIsLocating(true);
     try {
       const res = await fetch("https://ipapi.co/json/");
       const data = await res.json();
@@ -52,6 +62,8 @@ export function GlobeMarkersCard() {
       setTriggerFly(true);
     } catch (err) {
       console.error("Failed to fetch location", err);
+    } finally {
+      setIsLocating(false);
     }
   };
 
@@ -110,9 +122,11 @@ export function GlobeMarkersCard() {
             {/* 📍 Floating Locate Button */}
             <button
               onClick={handleLocate}
-              className="absolute top-3 left-3 z-10 bg-white p-2 rounded-lg shadow-md hover:bg-gray-100"
+              disabled={isLocating}
+              aria-label={isLocating ? "Locating your position" : "Locate my position"}
+              className="absolute left-3 top-3 z-10 rounded-lg border border-border/70 bg-background/95 p-2 shadow-md transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70 disabled:cursor-not-allowed disabled:opacity-65"
             >
-              <LocateFixed className="w-5 h-5 text-black" />
+              <LocateFixed className="h-5 w-5 text-foreground" />
             </button>
 
           </div>

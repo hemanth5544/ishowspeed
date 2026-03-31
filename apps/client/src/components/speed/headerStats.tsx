@@ -47,7 +47,7 @@ function getBadgeColors(label: string, value: string): string {
 
 export function HeaderStats({ items }: headerStatsProps) {
   return (
-    <div className="flex flex-wrap items-center gap-2 px-4 pb-4">
+    <div className="flex flex-wrap items-center gap-2">
       {items.map(({ label, val }) => (
         <Badge
           key={label}
