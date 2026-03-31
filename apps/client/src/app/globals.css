@@ -48,6 +48,23 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+.diagonal-stripes {
+  --stripe-color: oklch(0.3 0 0 / 30%);
+  --stripe-bg: transparent;
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--stripe-bg),
+    var(--stripe-bg) 6px,
+    var(--stripe-color) 6px,
+    var(--stripe-color) 7px
+  );
+}
+
+
+html.dark .diagonal-stripes {
+  --stripe-color: oklch(0.45 0 0 / 40%);
+}
+
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
