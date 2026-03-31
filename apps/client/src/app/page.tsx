@@ -6,12 +6,7 @@ import { useSpeedTest, quality } from "@/components/hooks/useSpeedTest";
 import { HeaderStats } from "@/components/speed/headerStats";
 import { IPInfoCard } from "@/components/speed/Ipinfocard";
 import { ConnectionQuality } from "@/components/speed/Connectionquality";
-
-
-
-// Sidebar width: 260px
-// Right margin: half of sidebar = 130px
-// Stripes are 5px wide, sitting just inside those margins
+import { PingRegions } from "@/components/speed/Pingregions";
 
 export default function BarsPage() {
   const { data, status, progress, summary, startTest } = useSpeedTest();
@@ -19,14 +14,14 @@ export default function BarsPage() {
   return (
     <div className="relative min-h-screen">
 
-      {/* Left stripe — sits at the right edge of the sidebar space (260px from left) */}
+      {/* Left stripe */}
       <div
         className="diagonal-stripes pointer-events-none absolute inset-y-0 hidden w-5 lg:block"
         style={{ left: "260px" }}
         aria-hidden="true"
       />
 
-      {/* Right stripe — sits 130px from right edge (half sidebar width) */}
+      {/* Right stripe */}
       <div
         className="diagonal-stripes pointer-events-none absolute inset-y-0 hidden w-5 lg:block"
         style={{ right: "130px" }}
@@ -35,10 +30,10 @@ export default function BarsPage() {
 
       <div className="flex min-h-screen">
 
-        {/* Sidebar placeholder — 260px wide, replace with <Sidebar /> later */}
+        {/* Sidebar placeholder */}
         <div className="hidden lg:block shrink-0" style={{ width: "260px" }} />
 
-        {/* Main content — padded right to match the 130px right margin */}
+        {/* Main content */}
         <main className="flex-1 min-w-0 py-8 pl-6" style={{ paddingRight: "150px" }}>
 
           {/* Top stats bar */}
@@ -60,9 +55,11 @@ export default function BarsPage() {
             <ThemeSwitcherDemo />
           </div>
 
-          {/* Chart + map row */}
-          <div className="flex h-[400px] items-stretch gap-6">
-            <div className="h-full min-w-0 flex-[2]">
+          {/* Row 1: Chart + Connection quality (left) | Map + IP info (right) */}
+          <div className="flex items-start gap-6">
+
+            {/* Left col */}
+            <div className="flex-[2] min-w-0 flex flex-col gap-6">
               <ChartLineInteractive
                 data={data}
                 status={status}
@@ -70,15 +67,22 @@ export default function BarsPage() {
                 summary={summary}
                 startTest={startTest}
               />
-            <div className="mt-6">
-  <ConnectionQuality summary={summary} />
-</div>
+              <ConnectionQuality summary={summary} />
             </div>
-            <div className="h-full min-w-[260px] max-w-[560px] flex-1">
-              <GlobeMarkersCard />
-                <IPInfoCard />
 
+            {/* Right col */}
+            <div className="flex-1 min-w-[260px] max-w-[460px] flex flex-col gap-4">
+              <div className="h-[400px]">
+                <GlobeMarkersCard />
+              </div>
+              <IPInfoCard />
             </div>
+
+          </div>
+
+          {/* Row 2: Ping regions — full width */}
+          <div className="mt-6 pb-8">
+            <PingRegions />
           </div>
 
         </main>
