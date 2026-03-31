@@ -4,6 +4,10 @@ import { GlobeMarkersCard } from "@/components/map";
 import { ChartLineInteractive } from "@/components/speed/chart";
 import { useSpeedTest, quality } from "@/components/hooks/useSpeedTest";
 import { HeaderStats } from "@/components/speed/headerStats";
+import { IPInfoCard } from "@/components/speed/Ipinfocard";
+import { ConnectionQuality } from "@/components/speed/Connectionquality";
+
+
 
 // Sidebar width: 260px
 // Right margin: half of sidebar = 130px
@@ -66,9 +70,14 @@ export default function BarsPage() {
                 summary={summary}
                 startTest={startTest}
               />
+            <div className="mt-6">
+  <ConnectionQuality summary={summary} />
+</div>
             </div>
             <div className="h-full min-w-[260px] max-w-[560px] flex-1">
               <GlobeMarkersCard />
+                <IPInfoCard />
+
             </div>
           </div>
 
