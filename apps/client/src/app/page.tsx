@@ -1,6 +1,6 @@
 "use client";
 import ThemeSwitcherDemo from "@/components/theme";
-import { MapControlsExample } from "@/components/map";
+import { GlobeMarkersCard } from "@/components/map";
 import { ChartLineInteractive } from "@/components/speed/chart";
 import { useSpeedTest, quality } from "@/components/hooks/useSpeedTest";
 import { HeaderStats } from "@/components/speed/headerStats";
@@ -19,7 +19,7 @@ export default function BarsPage() {
             },
             {
               label: "Packet loss",
-              val: summary.packetLoss > 0 ? `${summary.packetLoss.toFixed(1)}%` : "—",
+              val: summary.packetLoss > 0 ? `${summary.packetLoss.toFixed(1)}%` : "0",
             },
             { label: "Server", val: "Cloudflare" },
             { label: "Quality", val: quality(summary.download) },
@@ -29,7 +29,7 @@ export default function BarsPage() {
         <ThemeSwitcherDemo />
       </div>
       <div className="flex h-[400px] items-stretch gap-6">
-        <div className="h-full min-w-0 flex-[4]">
+        <div className="h-full min-w-0 flex-[2]">
           <ChartLineInteractive
             data={data}
             status={status}
@@ -38,10 +38,11 @@ export default function BarsPage() {
             startTest={startTest}
           />
         </div>
-        <div className="h-full min-w-[280px] flex-[1.5]">
-          <MapControlsExample />
+        <div className="h-full min-w-[260px] max-w-[560px] flex-1">
+          <GlobeMarkersCard />
         </div>
       </div>
+   
     </div>
   );
 }
