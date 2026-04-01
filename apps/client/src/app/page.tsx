@@ -12,6 +12,13 @@ import { EyeTracking } from "@/components/ui/eye-tracking";
 import { FadeInView } from "@/components/speed/Fadeinview";
 import { GitHubStarsButton } from "@/components/github-stars-button";
 import { NativeProfileNotch } from "@/components/uitripled/native-profile-notch-shadcnui";
+import { ProductHuntButton } from "@/components/producthunt-button";
+import { Suspense } from "react";
+
+const SIDEBAR_W    = 200;  
+const STRIPE_W     = 20;   
+const RIGHT_MARGIN = 180;  
+const GAP = 24;
 
 export default function BarsPage() {
   const { data, status, progress, summary, startTest } = useSpeedTest();
@@ -20,56 +27,65 @@ export default function BarsPage() {
   useEffect(() => {
     if (hasAutoStarted.current || status !== "idle") return;
     hasAutoStarted.current = true;
-    const timer = setTimeout(() => {
-      void startTest();
-    }, 0);
+    const timer = setTimeout(() => { void startTest(); }, 0);
     return () => clearTimeout(timer);
   }, [startTest, status]);
 
   return (
     <div className="relative min-h-screen">
 
-      {/* Left stripe */}
+      {/* Left stripe — right edge of sidebar */}
       <div
-        className="diagonal-stripes pointer-events-none absolute inset-y-0 hidden w-5 lg:block"
-        style={{ left: "260px" }}
+        className="diagonal-stripes pointer-events-none absolute inset-y-0 hidden lg:block"
+        style={{ left: `${SIDEBAR_W}px`, width: `${STRIPE_W}px` }}
         aria-hidden="true"
       />
 
       {/* Right stripe */}
       <div
-        className="diagonal-stripes pointer-events-none absolute inset-y-0 hidden w-5 lg:block"
-        style={{ right: "130px" }}
+        className="diagonal-stripes pointer-events-none absolute inset-y-0 hidden lg:block"
+        style={{ right: `${RIGHT_MARGIN}px`, width: `${STRIPE_W}px` }}
         aria-hidden="true"
       />
 
-      {/* EyeTracking — fixed bottom right margin */}
+      {/* NativeProfileNotch — top-right inside right margin */}
+      <div
+        className="hidden lg:flex fixed top-8 items-center justify-center z-20"
+        style={{ right: 0, width: `${RIGHT_MARGIN}px` }}
+      >
+        <NativeProfileNotch
+          imageSrc="https://avatars.githubusercontent.com/u/92920794?s=400&u=808d412bb97df1d136bcf665af8d844f376b2f16&v=4"
+          name="Hemanth"
+          username="hemanth5544"
+          className="origin-top scale-90"
+        />
+      </div>
+
+      {/* EyeTracking — centered inside right margin */}
       <div
         className="hidden lg:flex fixed bottom-8 items-center justify-center z-20"
-        style={{ right: 0, width: "130px" }}
+        style={{ right: 0, width: `${RIGHT_MARGIN}px` }}
       >
         <EyeTracking eyeSize={50} gap={20} />
       </div>
-
+ 
       <div className="flex min-h-screen">
 
         {/* ── Sidebar ── */}
         <div
           className="hidden lg:flex flex-col shrink-0 border-r border-border overflow-visible"
-          style={{ width: "260px" }}
+          style={{ width: `${SIDEBAR_W}px` }}
         >
-          <div className="border-b border-border px-4 py-4">
-            <p className="mb-2 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-              Project
-            </p>
+          <div className="px-4 py-7">
             <GitHubStarsButton
               owner="hemanth5544"
               repo="ishowspeed"
               variant="outline"
-              size="sm"
-              showRepo
-              className="w-full justify-between"
             />
+            <span className="mx-2 text-sm text-muted-foreground">
+              <Suspense fallback={null}>
+                <ProductHuntButton slug="notion" upvotes={12843} name="Notion" variant="producthunt" />
+              </Suspense>            </span>
           </div>
 
           <div className="mt-auto px-4 py-4">
@@ -85,8 +101,17 @@ export default function BarsPage() {
           </div>
         </div>
 
-        {/* ── Main content ── */}
-        <main className="flex-1 min-w-0 py-8 pl-6" style={{ paddingRight: "150px" }}>
+        {/* ── Main content ──
+            Left padding  = stripe width + gap  (clears the left stripe)
+            Right padding = right margin + stripe width + gap  (clears right stripe + margin)
+        -->*/}
+        <main
+          className="flex-1 min-w-0 py-8"
+          style={{
+            paddingLeft:  `${STRIPE_W + GAP}px`,
+            paddingRight: `${RIGHT_MARGIN + STRIPE_W + GAP}px`,
+          }}
+        >
 
           {/* Top stats bar */}
           <FadeInView delay={0}>
@@ -135,7 +160,7 @@ export default function BarsPage() {
                   <GlobeMarkersCard />
                 </div>
               </FadeInView>
-              <FadeInView delay={0.13}>
+               <FadeInView delay={0.13}>
                 <IPInfoCard />
               </FadeInView>
             </div>
