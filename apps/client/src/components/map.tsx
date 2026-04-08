@@ -48,13 +48,18 @@ export function GlobeMarkersCard() {
     if (isLocating) return;
     setIsLocating(true);
     try {
-      const res = await fetch("https://ipapi.co/json/");
+      const res = await fetch("/api/geo", { cache: "no-store" });
+      if (!res.ok) throw new Error("Failed to fetch location");
       const data = await res.json();
 
+      if (typeof data.lat !== "number" || typeof data.lng !== "number") {
+        throw new Error("Location coordinates are unavailable");
+      }
+
       const loc = {
-        name: `${data.city}, ${data.country_name}`,
-        lat: data.latitude,
-        lng: data.longitude,
+        name: `${data.city}, ${data.countryName}`,
+        lat: data.lat,
+        lng: data.lng,
         ip: data.ip,
       };
 

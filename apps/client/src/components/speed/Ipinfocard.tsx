@@ -7,16 +7,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Check, Copy } from "lucide-react";
 
-interface IPInfo {
-  ip: string;
-  city: string;
-  region: string;
-  country: string;
-  org: string;
-  timezone: string;
-  loc: string;
-}
-
 interface ParsedInfo {
   ip: string;
   city: string;
@@ -25,12 +15,6 @@ interface ParsedInfo {
   isp: string;
   asn: string;
   timezone: string;
-}
-
-function parseOrg(org: string): { isp: string; asn: string } {
-  const match = org.match(/^(AS\d+)\s+(.+)$/);
-  if (match) return { asn: match[1], isp: match[2] };
-  return { asn: "—", isp: org };
 }
 
 const rowVariants: Variants = {
@@ -149,35 +133,20 @@ export function IPInfoCard() {
   useEffect(() => {
     async function fetchIP() {
       try {
-        const res = await fetch("https://ipinfo.io/json");
+        const res = await fetch("/api/geo", { cache: "no-store" });
         if (!res.ok) throw new Error("Failed");
-        const data: IPInfo = await res.json();
-        const { isp, asn } = parseOrg(data.org ?? "");
+        const data: ParsedInfo = await res.json();
         setInfo({
           ip: data.ip,
           city: data.city,
           region: data.region,
           country: data.country,
-          isp,
-          asn,
+          isp: data.isp,
+          asn: data.asn,
           timezone: data.timezone,
         });
       } catch {
-        try {
-          const res2 = await fetch("https://api.ipify.org?format=json");
-          const { ip } = await res2.json();
-          setInfo({
-            ip,
-            city: "—",
-            region: "—",
-            country: "—",
-            isp: "—",
-            asn: "—",
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          });
-        } catch {
-          setError(true);
-        }
+        setError(true);
       } finally {
         setLoading(false);
       }
